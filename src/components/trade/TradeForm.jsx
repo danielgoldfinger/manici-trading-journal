@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CHECKLIST, computeScore, MISTAKE_FLAGS } from '../../lib/score';
+import { CHECKLISTS, computeScore, MISTAKE_FLAGS } from '../../lib/score';
 import { getRecommendedContracts, DOWNSIZE_RULES } from '../../lib/sizing';
 import { useSettings } from '../../hooks/useSettings';
 import { useTrades } from '../../hooks/useTrades';
@@ -9,7 +9,9 @@ import Checklist from '../checklist/Checklist';
 import VerdictBar from '../checklist/VerdictBar';
 import SizingPanel from './SizingPanel';
 
-const emptyChecks = CHECKLIST.reduce((acc, c) => ({ ...acc, [c.id]: false }), {});
+// All 14 DB column slots, defaulted false — covers every setup type's checklist.
+const ALL_CHECK_IDS = [...new Set(Object.values(CHECKLISTS).flatMap((list) => list.map((c) => c.id)))];
+const emptyChecks = ALL_CHECK_IDS.reduce((acc, id) => ({ ...acc, [id]: false }), {});
 
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
@@ -70,8 +72,8 @@ export default function TradeForm({ tradeId = null }) {
         plan_level_price: trade.plan_level_price ?? '',
       });
       const loadedChecks = {};
-      CHECKLIST.forEach((c) => {
-        loadedChecks[c.id] = !!trade[c.id];
+      ALL_CHECK_IDS.forEach((id) => {
+        loadedChecks[id] = !!trade[id];
       });
       setChecks(loadedChecks);
     });
@@ -99,7 +101,7 @@ export default function TradeForm({ tradeId = null }) {
     }));
   }
 
-  const score = useMemo(() => computeScore(checks), [checks]);
+  const score = useMemo(() => computeScore(checks, form.setup_type), [checks, form.setup_type]);
   const accountBalance = settings?.account_balance ?? 11600;
 
   const recommendedContracts = useMemo(() => {
@@ -122,6 +124,7 @@ export default function TradeForm({ tradeId = null }) {
   }, [form.entry_price, form.exit_price]);
 
   function update(field, value) {
+    if (field === 'setup_type') setChecks(emptyChecks);
     setForm((prev) => ({ ...prev, [field]: value, ...(field === 'pnl_points' ? { _autoFilled: false } : {}) }));
   }
 
@@ -168,7 +171,7 @@ export default function TradeForm({ tradeId = null }) {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
-      <VerdictBar checks={checks} depth={form.flush_depth} accountBalance={accountBalance} />
+      <VerdictBar checks={checks} setupType={form.setup_type} depth={form.flush_depth} accountBalance={accountBalance} />
 
       <section className="grid grid-cols-1 gap-4 rounded-lg border border-gray-200 p-4 sm:grid-cols-2 dark:border-gray-800">
         <Field label="Date">
@@ -191,7 +194,7 @@ export default function TradeForm({ tradeId = null }) {
             <option value="deep">Deep (&gt;20pts)</option>
           </select>
         </Field>
-        <Field label="FB level">
+        <Field label={KEY_LEVEL_LABELS[form.setup_type] ?? 'Key level'}>
           <input type="number" step="0.25" value={form.fb_level} onChange={(e) => update('fb_level', e.target.value)} className={inputClass} />
           {planLevels.length > 0 && (
             <select
@@ -260,7 +263,7 @@ export default function TradeForm({ tradeId = null }) {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Checklist</h2>
-        <Checklist checks={checks} onToggle={toggleCheck} />
+        <Checklist checks={checks} onToggle={toggleCheck} setupType={form.setup_type} />
       </section>
 
       <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
@@ -294,6 +297,13 @@ export default function TradeForm({ tradeId = null }) {
 }
 
 const inputClass = 'w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900';
+
+const KEY_LEVEL_LABELS = {
+  FB: 'FB level',
+  LR: 'Shelf level',
+  BT: 'Breakout/zone level',
+  BD: 'Short level',
+};
 
 function Field({ label, children }) {
   return (

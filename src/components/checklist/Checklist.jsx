@@ -1,37 +1,38 @@
-import { CHECKLIST } from '../../lib/score';
+import { getChecklist } from '../../lib/score';
 import CheckItem from './CheckItem';
 import PhaseHeader from './PhaseHeader';
 
 const PHASE_LABELS = {
-  1: 'Identify the setup',
-  2: 'Reclaim',
-  3: 'Confirmation',
-  4: 'Execution plan',
+  FB: { 1: 'Identify the setup', 2: 'Reclaim', 3: 'Confirmation', 4: 'Execution plan' },
+  LR: { 1: 'Identify the shelf', 2: 'Reclaim', 3: 'Confirmation', 4: 'Execution plan' },
+  BT: { 1: 'Identify the breakout', 2: 'Retest', 3: 'Confirmation', 4: 'Execution plan' },
+  BD: { 1: 'Identify the level', 2: 'Pre-short confirmation', 3: 'Trigger & context', 4: 'Execution plan' },
 };
 
-function isPhaseGateMet(phase, checks) {
-  if (phase === 1) return true;
-  if (phase === 2) return ['c_p1_1', 'c_p1_2', 'c_p1_3', 'c_p1_4'].every((id) => checks[id]);
-  if (phase === 3) return ['c_p1_1', 'c_p1_2', 'c_p1_3', 'c_p1_4', 'c_p2_1', 'c_p2_2'].every((id) => checks[id]);
-  if (phase === 4) return ['c_p1_1', 'c_p1_2', 'c_p1_3', 'c_p1_4', 'c_p2_1', 'c_p2_2', 'c_p3_5'].every((id) => checks[id]);
-  return true;
+function isPhaseGateMet(phase, checks, checklist) {
+  const priorGateIds = checklist
+    .filter((c) => c.phase < phase && c.weight === 'gate')
+    .map((c) => c.id);
+  return priorGateIds.every((id) => checks[id]);
 }
 
-export default function Checklist({ checks, onToggle }) {
-  const phases = [1, 2, 3, 4];
+export default function Checklist({ checks, onToggle, setupType = 'FB' }) {
+  const checklist = getChecklist(setupType);
+  const phases = [...new Set(checklist.map((c) => c.phase))].sort();
+  const phaseLabels = PHASE_LABELS[setupType] ?? PHASE_LABELS.FB;
 
   return (
     <div className="space-y-6">
       {phases.map((phase) => {
-        const items = CHECKLIST.filter((c) => c.phase === phase);
+        const items = checklist.filter((c) => c.phase === phase);
         const checkedCount = items.filter((c) => checks[c.id]).length;
-        const dimmed = !isPhaseGateMet(phase, checks);
+        const dimmed = !isPhaseGateMet(phase, checks, checklist);
 
         return (
           <div key={phase} className={dimmed ? 'opacity-50' : ''}>
             <PhaseHeader
               phase={phase}
-              label={PHASE_LABELS[phase]}
+              label={phaseLabels[phase]}
               checkedCount={checkedCount}
               totalCount={items.length}
             />

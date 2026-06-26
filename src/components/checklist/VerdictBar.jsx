@@ -7,8 +7,8 @@ const STATE_STYLES = {
   success: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
 };
 
-export default function VerdictBar({ checks, depth = 'shallow', accountBalance = 11600 }) {
-  const verdict = getVerdict(checks, depth);
+export default function VerdictBar({ checks, setupType = 'FB', depth = 'shallow', accountBalance = 11600 }) {
+  const verdict = getVerdict(checks, setupType, depth);
   const tier = getSizingTier(verdict.score);
   const recommended = getRecommendedContracts(accountBalance, verdict.score);
 

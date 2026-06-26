@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CHECKLIST } from '../../lib/score';
+import { getChecklist } from '../../lib/score';
 import { useTrades } from '../../hooks/useTrades';
 
 export default function TradeDetail({ tradeId, onClose }) {
@@ -75,7 +75,7 @@ export default function TradeDetail({ tradeId, onClose }) {
       <div className="mt-6">
         <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Checklist replay</h3>
         <ul className="grid grid-cols-1 gap-1 text-sm md:grid-cols-2">
-          {CHECKLIST.map((item) => (
+          {getChecklist(trade.setup_type).map((item) => (
             <li key={item.id} className="flex items-center gap-2">
               <span className={trade[item.id] ? 'text-green-600' : 'text-gray-400'}>
                 {trade[item.id] ? '✓' : '✗'}
