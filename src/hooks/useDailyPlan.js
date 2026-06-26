@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { parseNewsletter } from '../lib/newsletter';
+import { stripLoneSurrogates } from '../lib/pdf';
 
 export function useDailyPlan() {
   const [plan, setPlan] = useState(null);
@@ -20,10 +21,11 @@ export function useDailyPlan() {
     return data ?? null;
   }, []);
 
-  async function parseAndSave(date, rawText) {
+  async function parseAndSave(date, rawTextInput) {
     setLoading(true);
     setError(null);
 
+    const rawText = stripLoneSurrogates(rawTextInput);
     const regexResult = parseNewsletter(rawText);
 
     let directBidLevels = [];

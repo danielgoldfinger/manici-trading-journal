@@ -3,6 +3,17 @@ import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+// PDFs with subsetted/custom fonts can yield glyphs with incomplete Unicode
+// mappings, producing unpaired UTF-16 surrogates. Postgres's JSON input
+// rejects these outright ("unsupported Unicode escape sequence"), so strip
+// any surrogate code unit that isn't part of a valid high/low pair.
+export function stripLoneSurrogates(str) {
+  return str.replace(
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/g,
+    (match) => match.slice(0, -1)
+  );
+}
+
 export async function extractPdfText(file) {
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
@@ -15,5 +26,5 @@ export async function extractPdfText(file) {
     pageTexts.push(pageText);
   }
 
-  return pageTexts.join('\n\n');
+  return stripLoneSurrogates(pageTexts.join('\n\n'));
 }
