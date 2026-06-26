@@ -3,7 +3,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   // Auth check
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -12,7 +21,7 @@ serve(async (req) => {
   const { data: { user } } = await supabase.auth.getUser(
     req.headers.get('Authorization')?.replace('Bearer ', '') || ''
   )
-  if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!user) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
 
   const { directBidText, fullPlanText } = await req.json()
 
@@ -55,18 +64,24 @@ ${fullPlanText?.slice(0, 2000) || ''}`
   })
 
   const data = await response.json()
+  if (!data.content?.[0]?.text) {
+    return new Response(JSON.stringify({ levels: [], warning: `AI call failed: ${JSON.stringify(data).slice(0, 300)}` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
   const raw = data.content[0].text.trim()
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
 
   let levels = []
   try {
-    levels = JSON.parse(raw)
+    levels = JSON.parse(cleaned)
   } catch {
-    return new Response(JSON.stringify({ levels: [], warning: 'AI parse failed — manual entry required' }), {
-      headers: { 'Content-Type': 'application/json' }
+    return new Response(JSON.stringify({ levels: [], warning: `AI parse failed — manual entry required. Raw: ${raw.slice(0, 200)}` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 
   return new Response(JSON.stringify({ levels }), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   })
 })
