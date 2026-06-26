@@ -1,4 +1,10 @@
-export function parseNewsletter(text) {
+export function parseNewsletter(rawText) {
+  // PDF text extraction (and some word processors) render straight quotes as
+  // smart/curly Unicode quotes — normalize so regexes match either form.
+  const text = rawText
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"');
+
   const result = {
     supports:       [],
     resistances:    [],
