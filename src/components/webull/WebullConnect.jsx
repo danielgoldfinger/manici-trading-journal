@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useWebull } from '../../hooks/useWebull';
-import { getAccountSummary } from '../../lib/webull';
+import { getAccountList } from '../../lib/webull';
 import AccountWidget from './AccountWidget';
 import SyncButton from './SyncButton';
 
@@ -15,7 +15,7 @@ export default function WebullConnect({ settings, onUpdateSettings }) {
     setTesting(true);
     setTestResult(null);
     try {
-      await getAccountSummary();
+      await getAccountList();
       await onUpdateSettings({ webull_connected: true });
       await fetchAccountData();
       setTestResult('success');

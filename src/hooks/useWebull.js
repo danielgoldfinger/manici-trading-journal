@@ -1,6 +1,12 @@
 import { useCallback, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { getAccountSummary, getPositions, getRecentOrders } from '../lib/webull';
+import { getAccountList, getAccountBalance, getAccountPositions, getOrderHistory } from '../lib/webull';
+
+function selectFuturesAccountId(accounts) {
+  const list = accounts?.data ?? accounts ?? [];
+  const futuresAccount = list.find((a) => a.account_class === 'FUTURES');
+  return futuresAccount?.account_id ?? list[0]?.account_id;
+}
 
 export function useWebull() {
   const [account, setAccount] = useState(null);
@@ -12,9 +18,16 @@ export function useWebull() {
 
   async function fetchAccountData() {
     try {
-      const [summary, pos] = await Promise.all([getAccountSummary(), getPositions()]);
-      setAccount(summary);
-      setPositions(pos?.positions ?? []);
+      const accounts = await getAccountList();
+      const accountId = selectFuturesAccountId(accounts);
+      if (!accountId) throw new Error('No Webull futures account found for these credentials');
+
+      const [balance, positionsRes] = await Promise.all([
+        getAccountBalance(accountId),
+        getAccountPositions(accountId),
+      ]);
+      setAccount({ accountId, ...balance });
+      setPositions(positionsRes?.positions ?? positionsRes?.data ?? []);
     } catch (err) {
       setError(err.message);
     }
@@ -24,10 +37,16 @@ export function useWebull() {
     setSyncing(true);
     setError(null);
     try {
+      const accounts = await getAccountList();
+      const accountId = selectFuturesAccountId(accounts);
+      if (!accountId) throw new Error('No Webull futures account found for these credentials');
+
       const endDate = new Date().toISOString().slice(0, 10);
       const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const ordersRes = await getRecentOrders(startDate, endDate);
-      const orders = (ordersRes?.orders ?? []).filter((o) => o.symbol?.includes('MES'));
+      const historyRes = await getOrderHistory(accountId, { startDate, endDate });
+      const orders = (historyRes?.orders ?? historyRes?.data ?? []).filter((o) =>
+        o.symbol?.includes('MES')
+      );
 
       const { data: unsyncedTrades } = await supabase
         .from('trades')
@@ -38,8 +57,7 @@ export function useWebull() {
       const stillUnmatched = [];
 
       for (const order of orders) {
-        const orderDate = order.filledTime?.slice(0, 10);
-        const orderSide = order.side === 'BUY' ? 'long' : 'short';
+        const orderDate = order.filledTime?.slice(0, 10) ?? order.create_time?.slice(0, 10);
         const orderPrice = parseFloat(order.avgFilledPrice ?? order.price ?? 0);
 
         const match = (unsyncedTrades ?? []).find((t) => {
@@ -51,7 +69,7 @@ export function useWebull() {
         if (match) {
           await supabase
             .from('trades')
-            .update({ webull_order_id: order.orderId, webull_synced: true })
+            .update({ webull_order_id: order.order_id ?? order.client_order_id, webull_synced: true })
             .eq('id', match.id);
         } else {
           stillUnmatched.push(order);

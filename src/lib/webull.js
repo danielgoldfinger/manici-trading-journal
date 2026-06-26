@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-async function callWebull(endpoint, method = 'GET', body = null) {
+async function callWebull(endpoint, { method = 'GET', query = {}, body = null } = {}) {
   const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webull-proxy`, {
     method: 'POST',
@@ -8,35 +8,39 @@ async function callWebull(endpoint, method = 'GET', body = null) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ endpoint, method, body }),
+    body: JSON.stringify({ endpoint, method, query, body }),
   })
-  if (!res.ok) throw new Error(`Webull API error: ${res.status}`)
-  return res.json()
+  const data = await res.json()
+  if (!res.ok) throw new Error(data?.error || data?.msg || `Webull API error: ${res.status}`)
+  return data
 }
 
-// Account summary
-export async function getAccountSummary() {
-  return callWebull('/v1/account/summary')
+// All accounts under this app's credentials
+export async function getAccountList() {
+  return callWebull('/openapi/account/list')
 }
 
-// Open positions
-export async function getPositions() {
-  return callWebull('/v1/account/positions')
+// Balance / buying power for a specific account
+export async function getAccountBalance(accountId) {
+  return callWebull('/openapi/assets/balance', { query: { account_id: accountId } })
 }
 
-// Recent orders (last 30 days)
-export async function getRecentOrders(startDate, endDate) {
-  const params = new URLSearchParams({ startDate, endDate })
-  return callWebull(`/v1/trading/orders/list?${params}`)
+// Open positions for a specific account
+export async function getAccountPositions(accountId) {
+  return callWebull('/openapi/assets/positions', { query: { account_id: accountId } })
 }
 
-// Single order detail
-export async function getOrder(orderId) {
-  return callWebull(`/v1/trading/orders/${orderId}`)
+// Order history for a specific account (last 30 days by default)
+export async function getOrderHistory(accountId, { startDate, endDate, pageSize = 50 } = {}) {
+  const query = { account_id: accountId, page_size: pageSize }
+  if (startDate) query.start_date = startDate
+  if (endDate) query.end_date = endDate
+  return callWebull('/openapi/trade/order/history', { query })
 }
 
-// Account P&L
-export async function getPnL(startDate, endDate) {
-  const params = new URLSearchParams({ startDate, endDate })
-  return callWebull(`/v1/account/pnl?${params}`)
+// Single order detail by client_order_id
+export async function getOrderDetail(accountId, clientOrderId) {
+  return callWebull('/openapi/trade/order/detail', {
+    query: { account_id: accountId, client_order_id: clientOrderId },
+  })
 }
