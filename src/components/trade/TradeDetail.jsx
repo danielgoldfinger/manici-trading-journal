@@ -75,7 +75,7 @@ export default function TradeDetail({ tradeId, onClose }) {
         <Meta label="Exit" value={trade.exit_price ?? '—'} />
         <Meta label="Recommended contracts" value={trade.recommended_contracts ?? '—'} />
         <Meta label="Actual contracts" value={trade.actual_contracts ?? '—'} />
-        <Meta label="Mistake flag" value={trade.mistake_flag ?? 'None'} />
+        <Meta label="Mistake flags" value={trade.mistake_flag?.length ? trade.mistake_flag.join(', ') : 'None'} />
       </div>
 
       {trade.webull_order_id && (

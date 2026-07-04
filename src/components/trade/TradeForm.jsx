@@ -31,7 +31,7 @@ const emptyForm = {
   runner_points: '',
   thesis: '',
   post_review: '',
-  mistake_flag: '',
+  mistake_flag: [],
   plan_id: null,
   plan_level_price: '',
 };
@@ -72,7 +72,7 @@ export default function TradeForm({ tradeId = null }) {
         runner_points: trade.runner_points ?? '',
         thesis: trade.thesis ?? '',
         post_review: trade.post_review ?? '',
-        mistake_flag: trade.mistake_flag ?? '',
+        mistake_flag: trade.mistake_flag ?? [],
         plan_id: trade.plan_id ?? null,
         plan_level_price: trade.plan_level_price ?? '',
       });
@@ -155,7 +155,7 @@ export default function TradeForm({ tradeId = null }) {
     });
     payload.actual_contracts = payload.actual_contracts === '' ? null : parseInt(payload.actual_contracts, 10);
     payload.entry_time = payload.entry_time === '' ? null : payload.entry_time;
-    payload.mistake_flag = payload.mistake_flag === '' ? null : payload.mistake_flag;
+    // keep as array; empty array is fine for postgres text[]
 
     payload.setup_score = score;
     payload.recommended_contracts = recommendedContracts;
@@ -296,14 +296,27 @@ export default function TradeForm({ tradeId = null }) {
         <Field label="Post-trade review">
           <textarea rows={3} value={form.post_review} onChange={(e) => update('post_review', e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Mistake flag">
-          <select value={form.mistake_flag} onChange={(e) => update('mistake_flag', e.target.value)} className={inputClass}>
-            <option value="">None</option>
+        <div>
+          <span className="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">Mistake flags</span>
+          <div className="space-y-1">
             {MISTAKE_FLAGS.map((flag) => (
-              <option key={flag} value={flag}>{flag}</option>
+              <label key={flag} className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-red-500"
+                  checked={form.mistake_flag.includes(flag)}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...form.mistake_flag, flag]
+                      : form.mistake_flag.filter((f) => f !== flag);
+                    update('mistake_flag', next);
+                  }}
+                />
+                {flag}
+              </label>
             ))}
-          </select>
-        </Field>
+          </div>
+        </div>
 
         <div>
           <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Trade screenshot</span>
