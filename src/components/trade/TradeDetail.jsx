@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getChecklist } from '../../lib/score';
 import { useTrades } from '../../hooks/useTrades';
 import { supabase } from '../../lib/supabase';
+import Checklist from '../checklist/Checklist';
 
 export default function TradeDetail({ tradeId, onClose }) {
   const navigate = useNavigate();
@@ -83,17 +83,15 @@ export default function TradeDetail({ tradeId, onClose }) {
       )}
 
       <div className="mt-6">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Checklist replay</h3>
-        <ul className="grid grid-cols-1 gap-1 text-sm md:grid-cols-2">
-          {getChecklist(trade.setup_type).map((item) => (
-            <li key={item.id} className="flex items-center gap-2">
-              <span className={trade[item.id] ? 'text-green-600' : 'text-gray-400'}>
-                {trade[item.id] ? '✓' : '✗'}
-              </span>
-              {item.label}
-            </li>
-          ))}
-        </ul>
+        <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Checklist replay</h3>
+        <Checklist
+          checks={Object.fromEntries(
+            Object.keys(trade).filter((k) => k.startsWith('c_')).map((k) => [k, !!trade[k]])
+          )}
+          setupType={trade.setup_type}
+          onToggle={() => {}}
+          readOnly
+        />
       </div>
 
       {screenshotUrl && (

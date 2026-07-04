@@ -16,7 +16,7 @@ function isPhaseGateMet(phase, checks, checklist) {
   return priorGateIds.every((id) => checks[id]);
 }
 
-export default function Checklist({ checks, onToggle, setupType = 'FB' }) {
+export default function Checklist({ checks, onToggle, setupType = 'FB', readOnly = false }) {
   const checklist = getChecklist(setupType);
   const phases = [...new Set(checklist.map((c) => c.phase))].sort();
   const phaseLabels = PHASE_LABELS[setupType] ?? PHASE_LABELS.FB;
@@ -26,7 +26,7 @@ export default function Checklist({ checks, onToggle, setupType = 'FB' }) {
       {phases.map((phase) => {
         const items = checklist.filter((c) => c.phase === phase);
         const checkedCount = items.filter((c) => checks[c.id]).length;
-        const dimmed = !isPhaseGateMet(phase, checks, checklist);
+        const dimmed = !readOnly && !isPhaseGateMet(phase, checks, checklist);
 
         return (
           <div key={phase} className={dimmed ? 'opacity-50' : ''}>
@@ -42,7 +42,8 @@ export default function Checklist({ checks, onToggle, setupType = 'FB' }) {
                   key={item.id}
                   item={item}
                   checked={checks[item.id]}
-                  onToggle={onToggle}
+                  onToggle={readOnly ? () => {} : onToggle}
+                  disabled={readOnly}
                 />
               ))}
             </div>
