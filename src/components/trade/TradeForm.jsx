@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CHECKLISTS, computeScore, MISTAKE_FLAGS } from '../../lib/score';
 import { getRecommendedContracts, DOWNSIZE_RULES } from '../../lib/sizing';
 import { useSettings } from '../../hooks/useSettings';
 import { useTrades } from '../../hooks/useTrades';
 import { useDailyPlan } from '../../hooks/useDailyPlan';
+import { supabase } from '../../lib/supabase';
 import Checklist from '../checklist/Checklist';
 import VerdictBar from '../checklist/VerdictBar';
 import SizingPanel from './SizingPanel';
@@ -46,6 +47,10 @@ export default function TradeForm({ tradeId = null }) {
   const [adjustments, setAdjustments] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [screenshotFile, setScreenshotFile] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (!tradeId) return;
@@ -76,6 +81,7 @@ export default function TradeForm({ tradeId = null }) {
         loadedChecks[id] = !!trade[id];
       });
       setChecks(loadedChecks);
+      if (trade.screenshot_url) setScreenshotPreview(trade.screenshot_url);
     });
   }, [tradeId]);
 
@@ -156,11 +162,28 @@ export default function TradeForm({ tradeId = null }) {
     Object.assign(payload, checks);
 
     try {
+      let savedId = tradeId;
       if (tradeId) {
         await updateTrade(tradeId, payload);
       } else {
-        await createTrade(payload);
+        const trade = await createTrade(payload);
+        savedId = trade.id;
       }
+
+      if (screenshotFile && savedId) {
+        setUploadingScreenshot(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        const ext = screenshotFile.name.split('.').pop();
+        const path = `${user.id}/${savedId}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('trade-screenshots')
+          .upload(path, screenshotFile, { upsert: true });
+        if (!upErr) {
+          await updateTrade(savedId, { screenshot_url: path });
+        }
+        setUploadingScreenshot(false);
+      }
+
       navigate('/journal');
     } catch (err) {
       setError(err.message);
@@ -281,16 +304,56 @@ export default function TradeForm({ tradeId = null }) {
             ))}
           </select>
         </Field>
+
+        <div>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Trade screenshot</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setScreenshotFile(file);
+              setScreenshotPreview(URL.createObjectURL(file));
+            }}
+          />
+          {screenshotPreview ? (
+            <div className="relative mt-1 inline-block">
+              <img
+                src={screenshotPreview}
+                alt="Trade screenshot"
+                className="max-h-48 rounded border border-gray-300 object-contain dark:border-gray-700"
+              />
+              <button
+                type="button"
+                onClick={() => { setScreenshotFile(null); setScreenshotPreview(null); fileInputRef.current.value = ''; }}
+                className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white hover:bg-black/80"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-1 rounded border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-500"
+            >
+              + Attach screenshot
+            </button>
+          )}
+        </div>
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
         type="submit"
-        disabled={saving}
+        disabled={saving || uploadingScreenshot}
         className="w-full rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
       >
-        {saving ? 'Saving…' : tradeId ? 'Update trade' : 'Save trade'}
+        {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : tradeId ? 'Update trade' : 'Save trade'}
       </button>
     </form>
   );

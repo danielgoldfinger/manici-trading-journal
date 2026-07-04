@@ -2,15 +2,25 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getChecklist } from '../../lib/score';
 import { useTrades } from '../../hooks/useTrades';
+import { supabase } from '../../lib/supabase';
 
 export default function TradeDetail({ tradeId, onClose }) {
   const navigate = useNavigate();
   const { getTrade, deleteTrade } = useTrades();
   const [trade, setTrade] = useState(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [screenshotUrl, setScreenshotUrl] = useState(null);
 
   useEffect(() => {
-    getTrade(tradeId).then(setTrade);
+    getTrade(tradeId).then(async (t) => {
+      setTrade(t);
+      if (t?.screenshot_url) {
+        const { data, error } = await supabase.storage
+          .from('trade-screenshots')
+          .createSignedUrl(t.screenshot_url, 3600);
+        if (!error) setScreenshotUrl(data.signedUrl);
+      }
+    });
   }, [tradeId]);
 
   if (!trade) return null;
@@ -85,6 +95,19 @@ export default function TradeDetail({ tradeId, onClose }) {
           ))}
         </ul>
       </div>
+
+      {screenshotUrl && (
+        <div className="mt-6">
+          <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Screenshot</h3>
+          <a href={screenshotUrl} target="_blank" rel="noopener noreferrer">
+            <img
+              src={screenshotUrl}
+              alt="Trade screenshot"
+              className="max-h-96 w-full rounded border border-gray-200 object-contain dark:border-gray-800"
+            />
+          </a>
+        </div>
+      )}
 
       {trade.thesis && (
         <div className="mt-6">
