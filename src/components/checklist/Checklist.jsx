@@ -2,11 +2,20 @@ import { getChecklist } from '../../lib/score';
 import CheckItem from './CheckItem';
 import PhaseHeader from './PhaseHeader';
 
+const RIPSTER_PHASES = { 1: 'Regime gate', 2: 'Structure', 3: 'Trigger', 4: 'Confirmation', 5: 'Entry parameters' };
+
 const PHASE_LABELS = {
-  FB: { 1: 'Identify the setup', 2: 'Reclaim', 3: 'Confirmation', 4: 'Execution plan' },
-  LR: { 1: 'Identify the shelf', 2: 'Reclaim', 3: 'Confirmation', 4: 'Execution plan' },
-  BT: { 1: 'Identify the breakout', 2: 'Retest', 3: 'Confirmation', 4: 'Execution plan' },
-  BD: { 1: 'Identify the level', 2: 'Pre-short confirmation', 3: 'Trigger & context', 4: 'Execution plan' },
+  FB:    { 1: 'Identify the setup', 2: 'Reclaim', 3: 'Confirmation', 4: 'Execution plan' },
+  LR:    { 1: 'Identify the shelf', 2: 'Reclaim', 3: 'Confirmation', 4: 'Execution plan' },
+  BT:    { 1: 'Identify the breakout', 2: 'Retest', 3: 'Confirmation', 4: 'Execution plan' },
+  BD:    { 1: 'Identify the level', 2: 'Pre-short confirmation', 3: 'Trigger & context', 4: 'Execution plan' },
+  R_BRK: RIPSTER_PHASES,
+  R_FLU: RIPSTER_PHASES,
+  R_MAG: RIPSTER_PHASES,
+  R_REJ: RIPSTER_PHASES,
+  R_BNC: RIPSTER_PHASES,
+  R_CRL: RIPSTER_PHASES,
+  R_CON: RIPSTER_PHASES,
 };
 
 function isPhaseGateMet(phase, checks, checklist) {

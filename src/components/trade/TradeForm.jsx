@@ -205,10 +205,21 @@ export default function TradeForm({ tradeId = null }) {
         </Field>
         <Field label="Setup type">
           <select value={form.setup_type} onChange={(e) => update('setup_type', e.target.value)} className={inputClass}>
-            <option value="FB">Failed Breakdown</option>
-            <option value="LR">Level Reclaim</option>
-            <option value="BT">Back-test</option>
-            <option value="BD">Breakdown Short</option>
+            <optgroup label="Mancini">
+              <option value="FB">Failed Breakdown</option>
+              <option value="LR">Level Reclaim</option>
+              <option value="BT">Back-test</option>
+              <option value="BD">Breakdown Short</option>
+            </optgroup>
+            <optgroup label="Ripster MTF Cloud">
+              <option value="R_BRK">MTF Breakout</option>
+              <option value="R_FLU">MTF Flush</option>
+              <option value="R_MAG">MTF Magnet</option>
+              <option value="R_REJ">MTF Rejection</option>
+              <option value="R_BNC">MTF Bounce</option>
+              <option value="R_CRL">5/12 Curl</option>
+              <option value="R_CON">MTF Confluence</option>
+            </optgroup>
           </select>
         </Field>
         <Field label="Flush depth">
@@ -375,10 +386,17 @@ export default function TradeForm({ tradeId = null }) {
 const inputClass = 'w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900';
 
 const KEY_LEVEL_LABELS = {
-  FB: 'FB level',
-  LR: 'Shelf level',
-  BT: 'Breakout/zone level',
-  BD: 'Short level',
+  FB:    'FB level',
+  LR:    'Shelf level',
+  BT:    'Breakout/zone level',
+  BD:    'Short level',
+  R_BRK: 'MTF cloud level',
+  R_FLU: 'MTF cloud level',
+  R_MAG: 'First cloud / magnet level',
+  R_REJ: 'MTF cloud (resistance)',
+  R_BNC: 'MTF cloud (support)',
+  R_CRL: '5/12 cloud level',
+  R_CON: 'Confluence zone level',
 };
 
 function Field({ label, children }) {

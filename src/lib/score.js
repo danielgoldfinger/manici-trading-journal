@@ -164,11 +164,284 @@ const BD_CHECKLIST = [
     sub: '11am-2pm is chop territory — extra caution or skip.' },
 ];
 
+// ─── Ripster MTF Cloud setups ──────────────────────────────────────────────
+// Phase 1 = shared Regime Gate (hard veto, gate items).
+// Phases 2-5 = setup-specific criteria.
+// All 7 setups fit within the existing 14 boolean column slots.
+// Column allocation per setup:
+//   Phase 1 (regime):      c_p1_1, c_p1_2, c_p1_3
+//   Phase 2 (structure):   c_p1_4, c_p2_1[, c_p2_2]
+//   Phase 3 (trigger):     c_p2_2[or c_p3_1], c_p3_1, c_p3_2[, c_p3_3]
+//   Phase 4 (confirm):     c_p3_3[or c_p3_4], c_p3_4[or c_p3_5]
+//   Phase 5 (entry):       c_p3_5[or c_p4_1], c_p4_1[or c_p4_2], c_p4_2[or c_p4_3]
+// Exact mapping varies by setup to stay sequential in the pool of 14 IDs.
+
+const REGIME_GATE = [
+  { id: 'c_p1_1', phase: 1, weight: 'gate',
+    label: 'Not inside the Amateur Move window (first 3 min)',
+    sub: 'The opening amateur move typically gets faded. Let the first 3 minutes print before considering any entry.' },
+  { id: 'c_p1_2', phase: 1, weight: 'gate',
+    label: 'Not inside dead chop window',
+    sub: 'Avoid the 11am–2pm grind unless the session already established a strong directional trend before 11am.' },
+  { id: 'c_p1_3', phase: 1, weight: 'gate',
+    label: 'At least one trend signal present',
+    sub: 'New HOD/LOD by 10–10:30 AM, extended beyond PMH/PML, prior day high/low broken, price riding the 5/12 cloud directionally, or OR flag break into 10–10:30.' },
+];
+
+// Setup R_BRK — MTF Breakout (Bullish Continuation): 14 items
+const R_BRK_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'Higher-timeframe MTF cloud identified on 10m chart',
+    sub: '1H 34/50 or Daily 20/21 & 50/55 cloud visible and clearly positioned relative to price.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'Price was already trending up before reaching this cloud',
+    sub: 'Not a first test from chop — the uptrend should be established before the cloud comes into play.' },
+  { id: 'c_p2_2', phase: 2, weight: 'gate',
+    label: '5/12 (10-min) cloud already bullish',
+    sub: 'The fast cloud is green and price is trading above it — trend alignment across timeframes.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'Price closes above the MTF cloud (not just a wick)',
+    sub: 'Candle bodies closing above the cloud edge. A wick through then immediate return = not a breakout.' },
+  { id: 'c_p3_2', phase: 3, weight: 'gate',
+    label: 'RVOL confirms on the break',
+    sub: 'Elevated relative volume on the breakout candle — conviction behind the move.' },
+  { id: 'c_p3_3', phase: 3, weight: 'gate',
+    label: 'No immediate rejection wick back into the cloud',
+    sub: 'Price accepted above the cloud — not instantly reversing back through it after the break.' },
+  { id: 'c_p3_4', phase: 4, weight: 'bonus',
+    label: 'Follow-through candle holds above cloud',
+    sub: 'The next candle after the break also closes above the MTF cloud, confirming the move.' },
+  { id: 'c_p3_5', phase: 4, weight: 'bonus',
+    label: '5/12 cloud width expanding (momentum proxy)',
+    sub: 'The fast cloud is widening in the direction of the trade — signals strengthening momentum.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Stop placed at/just inside the broken MTF cloud edge',
+    sub: 'Stop makes the trade invalid if price re-enters the cloud — technically sound, not arbitrary.' },
+  { id: 'c_p4_2', phase: 5, weight: 'bonus',
+    label: 'Target = next MTF cloud/resistance zone identified',
+    sub: 'Know where 75% comes off before entering. Next significant Ripster level above.' },
+  { id: 'c_p4_3', phase: 5, weight: 'bonus',
+    label: 'Invalidation defined (close back below MTF cloud)',
+    sub: 'Clear exit rule if the breakout fails — a close back below the cloud cancels the setup.' },
+];
+
+// Setup R_FLU — MTF Flush (Bearish Continuation): 14 items, mirror of R_BRK
+const R_FLU_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'Higher-timeframe MTF cloud identified on 10m chart',
+    sub: '1H 34/50 or Daily 20/21 & 50/55 cloud visible and clearly positioned relative to price.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'Price was already trending down before reaching this cloud',
+    sub: 'Not a first test from chop — the downtrend should be established before the cloud comes into play.' },
+  { id: 'c_p2_2', phase: 2, weight: 'gate',
+    label: '5/12 (10-min) cloud already bearish',
+    sub: 'The fast cloud is red and price is trading below it — trend alignment across timeframes.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'Price closes below the MTF cloud (not just a wick)',
+    sub: 'Candle bodies closing below the cloud edge. A wick through then immediate reclaim = not a breakdown.' },
+  { id: 'c_p3_2', phase: 3, weight: 'gate',
+    label: 'RVOL confirms on the break',
+    sub: 'Elevated relative volume on the breakdown candle — conviction behind the move.' },
+  { id: 'c_p3_3', phase: 3, weight: 'gate',
+    label: 'No immediate reclaim wick back above the cloud',
+    sub: 'Price accepted below the cloud — not instantly reversing back through it after the break.' },
+  { id: 'c_p3_4', phase: 4, weight: 'bonus',
+    label: 'Follow-through candle holds below cloud',
+    sub: 'The next candle after the break also closes below the MTF cloud, confirming the move.' },
+  { id: 'c_p3_5', phase: 4, weight: 'bonus',
+    label: '5/12 cloud width expanding to the downside (momentum proxy)',
+    sub: 'The fast cloud is widening downward — signals strengthening bearish momentum.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Stop placed at/just above the broken MTF cloud edge',
+    sub: 'Stop makes the trade invalid if price re-enters the cloud from below.' },
+  { id: 'c_p4_2', phase: 5, weight: 'bonus',
+    label: 'Target = next lower MTF cloud/support zone identified',
+    sub: 'Know where 75% comes off before entering. Next significant Ripster level below.' },
+  { id: 'c_p4_3', phase: 5, weight: 'bonus',
+    label: 'Invalidation defined (close back above MTF cloud)',
+    sub: 'Clear exit rule if the breakdown fails — a close back above the cloud cancels the setup.' },
+];
+
+// Setup R_MAG — MTF Magnet (Continuation to next cloud): 12 items
+const R_MAG_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'At least 2 distinct MTF clouds stacked/visible on the chart',
+    sub: 'e.g. 1H 34/50 + Daily 20/21, or triple with Daily 50/55. Both must be clearly identifiable.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'First cloud already broken and confirmed (not in progress)',
+    sub: 'The first cloud was broken cleanly — the setup is about the continuation move toward the second cloud, not the initial break.' },
+  { id: 'c_p2_2', phase: 3, weight: 'gate',
+    label: 'Price moving directionally toward the second (untested) MTF cloud',
+    sub: 'Price is in motion toward the magnet cloud — not stalling or chopping between the two clouds.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'No major structure between price and target cloud that would stall it',
+    sub: 'Prior swing highs/lows or key levels between price and the magnet reduce odds. Clean air between = higher confidence.' },
+  { id: 'c_p3_2', phase: 4, weight: 'bonus',
+    label: 'Momentum/RVOL still supportive of the move continuing',
+    sub: 'Volume and momentum are not fading — the move hasn\'t exhausted itself before reaching the magnet.' },
+  { id: 'c_p3_3', phase: 4, weight: 'bonus',
+    label: '5/12 (10-min) cloud aligned with direction of travel',
+    sub: 'Fast cloud is pointing the same direction as the magnet move — trend alignment.' },
+  { id: 'c_p3_4', phase: 5, weight: 'bonus',
+    label: 'Target = second MTF cloud clearly defined (measured-move trade)',
+    sub: 'This is NOT an open-ended trade — the target IS the magnet cloud. Sized for that R/R.' },
+  { id: 'c_p3_5', phase: 5, weight: 'bonus',
+    label: 'Stop at the first (already-broken) MTF cloud',
+    sub: 'A close back through the first cloud invalidates the continuation thesis.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Sized appropriately for a measured-move, not open-ended',
+    sub: 'Exit at the magnet — don\'t hold expecting more. The whole thesis is the pull to the second cloud.' },
+];
+
+// Setup R_REJ — MTF Rejection (Reversal at resistance cloud): 13 items
+const R_REJ_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'Price approaching MTF cloud from below (testing as resistance) after an extended move',
+    sub: 'The move into the cloud should be extended — a fresh, tired run into overhead MTF supply.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'This is the 1st or 2nd test of this cloud level',
+    sub: 'Reversal odds drop significantly on the 3rd+ test as the level gets eaten through. 1st test is best.' },
+  { id: 'c_p2_2', phase: 3, weight: 'gate',
+    label: 'Price tags the MTF cloud and fails to close through it',
+    sub: 'Price reached the cloud but no candle body closed above it — supply is holding.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'Rejection candle on the 10-min chart (wick through, close back below)',
+    sub: 'A clear rejection bar — the wick tested the cloud, the body closed away from it.' },
+  { id: 'c_p3_2', phase: 3, weight: 'gate',
+    label: '10-min 5/12 cloud confirms rejection (turns red or price fails to reclaim it)',
+    sub: 'The fast cloud flipped bearish or price failed to reclaim it — trend timeframe is now aligned short.' },
+  { id: 'c_p3_3', phase: 4, weight: 'bonus',
+    label: 'RVOL present on the rejection candle (not a low-volume drift-back)',
+    sub: 'Elevated volume on the rejection bar means sellers showed up with conviction at the MTF cloud.' },
+  { id: 'c_p3_4', phase: 4, weight: 'bonus',
+    label: 'Follow-through candle continues away from the cloud',
+    sub: 'The candle after the rejection bar also moves away — momentum confirmed.' },
+  { id: 'c_p3_5', phase: 5, weight: 'bonus',
+    label: 'Stop placed just above the MTF cloud high (the level being rejected)',
+    sub: 'A close above the cloud invalidates the rejection — stop must sit above that level.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Target = prior support / next lower MTF cloud identified',
+    sub: 'Know where 75% comes off. Next significant Ripster level below.' },
+  { id: 'c_p4_2', phase: 5, weight: 'bonus',
+    label: 'Invalidation defined (close back above MTF cloud)',
+    sub: 'Clear exit rule if the rejection fails — a close back above the cloud cancels the setup.' },
+];
+
+// Setup R_BNC — MTF Bounce (Reversal at support cloud): 13 items, mirror of R_REJ
+const R_BNC_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'Price approaching MTF cloud from above (testing as support) after an extended move',
+    sub: 'The sell-off into the cloud should be extended — a tired move into major MTF demand.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'This is the 1st or 2nd test of this cloud level',
+    sub: 'Bounce odds drop significantly on the 3rd+ test. 1st touch of a cloud is the highest-quality reversal.' },
+  { id: 'c_p2_2', phase: 3, weight: 'gate',
+    label: 'Price tags the MTF cloud and holds (does not close through)',
+    sub: 'Price reached the cloud but no candle body closed below it — demand is holding.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'Bounce candle on the 10-min chart (wick through, close back above)',
+    sub: 'A clear reversal bar — the wick tested into the cloud, the body closed above it.' },
+  { id: 'c_p3_2', phase: 3, weight: 'gate',
+    label: '10-min 5/12 cloud confirms bounce (turns green or price reclaims it)',
+    sub: 'The fast cloud flipped bullish or price reclaimed it — trend timeframe is now aligned long.' },
+  { id: 'c_p3_3', phase: 4, weight: 'bonus',
+    label: 'RVOL present on the bounce candle (not a low-volume drift-up)',
+    sub: 'Elevated volume on the bounce bar — buyers showed up with conviction at the MTF cloud.' },
+  { id: 'c_p3_4', phase: 4, weight: 'bonus',
+    label: 'Follow-through candle continues away from the cloud upward',
+    sub: 'The candle after the bounce bar also moves up — momentum confirmed.' },
+  { id: 'c_p3_5', phase: 5, weight: 'bonus',
+    label: 'Stop placed just below the MTF cloud low (the level being defended)',
+    sub: 'A close below the cloud invalidates the bounce — stop must sit below that level.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Target = prior resistance / next higher MTF cloud identified',
+    sub: 'Know where 75% comes off. Next significant Ripster level above.' },
+  { id: 'c_p4_2', phase: 5, weight: 'bonus',
+    label: 'Invalidation defined (close back below MTF cloud)',
+    sub: 'Clear exit rule if the bounce fails — a close back below the cloud cancels the setup.' },
+];
+
+// Setup R_CRL — 5/12 Cloud Curl (trend-riding curl signal): 12 items
+const R_CRL_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'Prior trend/state clearly identified',
+    sub: 'Was price below/riding a bearish 5/12 cloud, or above/riding a bullish one? The curl is meaningful only as a change from a defined prior state.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'Relationship to 34/50 cloud noted',
+    sub: 'Curls occurring above the 34/50 cloud (bullish curl) or below it (bearish curl) are higher quality. Curls cutting through the 34/50 cloud have lower follow-through odds.' },
+  { id: 'c_p2_2', phase: 3, weight: 'gate',
+    label: '5/12 EMA cloud curls and flips color',
+    sub: 'The cloud changes from red-to-green (bullish) or green-to-red (bearish) — the actual trigger event.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'Not an immediate "5/12 Fails" pattern',
+    sub: 'A failed curl that reverts back through the 34/50 immediately is an invalidation, not an entry. Confirm the curl is holding before acting.' },
+  { id: 'c_p3_2', phase: 4, weight: 'bonus',
+    label: 'Price holds on the new side of the curling cloud for at least one full candle close',
+    sub: 'One closed candle on the new side confirms the curl isn\'t a fake-out.' },
+  { id: 'c_p3_3', phase: 4, weight: 'bonus',
+    label: 'Sub-pattern identified: Curl vs. 5/12 Reclaim',
+    sub: '"5/12 Reclaim" = fake breakdown + immediate bullish reclaim of the cloud. Both are valid but Reclaims have a different risk profile (faster, more aggressive entry).' },
+  { id: 'c_p3_4', phase: 5, weight: 'bonus',
+    label: 'Stop on the opposite side of the 5/12 cloud',
+    sub: 'If price crosses back through the curling cloud, the thesis is invalid. Stop must be on the other side.' },
+  { id: 'c_p3_5', phase: 5, weight: 'bonus',
+    label: 'Target identified (34/50 cloud or next MTF level)',
+    sub: 'If curling toward the 34/50 cloud, that is T1. If already through it, target the next MTF level.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Invalidation defined (5/12 curls back / fails immediately)',
+    sub: 'A re-curl back to the original color is your stop signal, not just price touching the cloud edge.' },
+];
+
+// Setup R_CON — MTF Confluence (stacked clouds = major S/R zone): 12 items
+const R_CON_CHECKLIST = [
+  ...REGIME_GATE,
+  { id: 'c_p1_4', phase: 2, weight: 'gate',
+    label: 'MTF clouds stacking identified (specify which: 1H 34/50 + Daily 20/21, etc.)',
+    sub: 'Name the exact clouds in your notes. Knowing which timeframes are stacked is key to sizing the stop and target correctly.' },
+  { id: 'c_p2_1', phase: 2, weight: 'gate',
+    label: 'Genuine overlap confirmed — not just two clouds loosely in the same area',
+    sub: 'The clouds should be touching or within a few points of each other. "In the same area" is not Confluence.' },
+  { id: 'c_p2_2', phase: 3, weight: 'gate',
+    label: 'Price has reached the confluence zone',
+    sub: 'Price is actually at the stacked cloud level, not approaching it from far away.' },
+  { id: 'c_p3_1', phase: 3, weight: 'gate',
+    label: 'Reaction at the zone matches a known pattern (Rejection, Bounce, or Breakout)',
+    sub: 'Confluence is a context multiplier — it amplifies one of the other Ripster setups. You still need an actual pattern firing at the zone.' },
+  { id: 'c_p3_2', phase: 4, weight: 'bonus',
+    label: 'Stronger RVOL than a single-cloud setup would require',
+    sub: 'At major confluence, expect and require bigger volume on the reaction. Low-volume reactions at confluence are suspect.' },
+  { id: 'c_p3_3', phase: 4, weight: 'bonus',
+    label: '10-min 5/12 cloud agrees with reaction direction',
+    sub: 'Fast cloud aligned with the trade direction — multi-timeframe confluence including the fast cloud.' },
+  { id: 'c_p3_4', phase: 5, weight: 'bonus',
+    label: 'Stop sized for the full confluence zone width (may require reducing size)',
+    sub: 'Stacked clouds = wider zone = wider stop. If this makes the stop too large for normal size, reduce contracts to keep risk the same.' },
+  { id: 'c_p3_5', phase: 5, weight: 'bonus',
+    label: 'Target = next major structure level beyond the zone',
+    sub: 'Confluence zones are major pivots — the move away from them can be large. Target the next significant level.' },
+  { id: 'c_p4_1', phase: 5, weight: 'bonus',
+    label: 'Invalidation = full close through the entire confluence zone',
+    sub: 'At stacked clouds, a single cloud being breached is not necessarily the stop. Wait for a close through the entire stacked zone.' },
+];
+
 export const CHECKLISTS = {
   FB: FB_CHECKLIST,
   LR: LR_CHECKLIST,
   BT: BT_CHECKLIST,
   BD: BD_CHECKLIST,
+  R_BRK: R_BRK_CHECKLIST,
+  R_FLU: R_FLU_CHECKLIST,
+  R_MAG: R_MAG_CHECKLIST,
+  R_REJ: R_REJ_CHECKLIST,
+  R_BNC: R_BNC_CHECKLIST,
+  R_CRL: R_CRL_CHECKLIST,
+  R_CON: R_CON_CHECKLIST,
 };
 
 export const SETUP_TYPE_LABELS = {
@@ -176,6 +449,13 @@ export const SETUP_TYPE_LABELS = {
   LR: 'Level Reclaim',
   BT: 'Back-test',
   BD: 'Breakdown Short',
+  R_BRK: 'Ripster — MTF Breakout',
+  R_FLU: 'Ripster — MTF Flush',
+  R_MAG: 'Ripster — MTF Magnet',
+  R_REJ: 'Ripster — MTF Rejection',
+  R_BNC: 'Ripster — MTF Bounce',
+  R_CRL: 'Ripster — 5/12 Curl',
+  R_CON: 'Ripster — MTF Confluence',
 };
 
 // Backwards-compatible default export — most call sites pass setupType
@@ -226,13 +506,21 @@ export function getVerdict(checks = {}, setupType = 'FB', depth = 'shallow') {
 
   if (donePhase === 0) return { label: 'No setup', state: 'idle', score };
   if (donePhase < lastPhase) {
-    const label = setupType === 'FB' || setupType === 'LR'
-      ? (donePhase === 1
+    let label;
+    if (setupType === 'FB' || setupType === 'LR') {
+      label = donePhase === 1
         ? (setupType === 'FB' ? 'Low not yet reclaimed' : 'Shelf not yet reclaimed')
         : depth === 'deep'
           ? 'Waiting for acceptance — deep flush, be patient (30-60+ min)'
-          : 'Waiting for acceptance')
-      : 'Building setup — criteria incomplete';
+          : 'Waiting for acceptance';
+    } else if (setupType.startsWith('R_')) {
+      const RIPSTER_PHASE_NAMES = { 1: 'Regime gate', 2: 'Structure', 3: 'Trigger', 4: 'Confirmation' };
+      label = donePhase === 1
+        ? 'Regime gate passed — structure criteria not yet met'
+        : `${RIPSTER_PHASE_NAMES[donePhase] ?? 'Phase ' + donePhase} complete — next phase incomplete`;
+    } else {
+      label = 'Building setup — criteria incomplete';
+    }
     return { label, state: 'warning', score };
   }
 
