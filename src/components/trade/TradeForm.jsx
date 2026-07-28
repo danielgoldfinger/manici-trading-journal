@@ -211,7 +211,7 @@ export default function TradeForm({ tradeId = null }) {
               <option value="BT">Back-test</option>
               <option value="BD">Breakdown Short</option>
             </optgroup>
-            <optgroup label="Ripster MTF Cloud">
+            <optgroup label="Ripster — MTF Cloud">
               <option value="R_BRK">MTF Breakout</option>
               <option value="R_FLU">MTF Flush</option>
               <option value="R_MAG">MTF Magnet</option>
@@ -219,6 +219,12 @@ export default function TradeForm({ tradeId = null }) {
               <option value="R_BNC">MTF Bounce</option>
               <option value="R_CRL">5/12 Curl</option>
               <option value="R_CON">MTF Confluence</option>
+            </optgroup>
+            <optgroup label="Ripster — EMA Cloud (intraday)">
+              <option value="R_512B">5/12 Bounce (long)</option>
+              <option value="R_512R">5/12 Reject (short)</option>
+              <option value="R_3450B">34-50 Bounce (long)</option>
+              <option value="R_3450R">34-50 Reject (short)</option>
             </optgroup>
           </select>
         </Field>
@@ -397,6 +403,10 @@ const KEY_LEVEL_LABELS = {
   R_BNC: 'MTF cloud (support)',
   R_CRL: '5/12 cloud level',
   R_CON: 'Confluence zone level',
+  R_512B: '5/12 cloud level',
+  R_512R: '5/12 cloud level',
+  R_3450B: '34-50 cloud level',
+  R_3450R: '34-50 cloud level',
 };
 
 function Field({ label, children }) {
