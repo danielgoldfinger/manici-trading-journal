@@ -6,6 +6,7 @@ const links = [
   { to: '/journal', label: 'Journal' },
   { to: '/stats', label: 'Stats' },
   { to: '/plan', label: 'Plan' },
+  { to: '/observations', label: 'Observations' },
   { to: '/settings', label: 'Settings' },
 ];
 
