@@ -16,6 +16,7 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
   const { completePostSession, upsertEntry, addEmotionalEvent, removeEmotionalEvent } = useDailyJournal();
 
   const [form, setForm] = useState({
+    traded_today:           entry?.traded_today           ?? null,
     post_execution_quality: entry?.post_execution_quality ?? null,
     post_mental_state:      entry?.post_mental_state      ?? null,
     post_energy_level:      entry?.post_energy_level      ?? null,
@@ -66,6 +67,20 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
           <span>Completed {entry.post_session_time ? new Date(entry.post_session_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
         </div>
       )}
+
+      {/* Traded today */}
+      <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <input
+          type="checkbox"
+          checked={form.traded_today === true}
+          onChange={e => set('traded_today', e.target.checked ? true : false)}
+          className="h-4 w-4 accent-purple-600"
+        />
+        <span className="text-sm font-medium">I traded today</span>
+        {form.traded_today === false && (
+          <span className="text-xs text-gray-400">No-trade day</span>
+        )}
+      </label>
 
       {/* Ratings */}
       <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
