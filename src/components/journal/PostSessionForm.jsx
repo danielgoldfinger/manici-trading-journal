@@ -2,6 +2,7 @@ import { useState } from 'react';
 import RatingSlider from './RatingSlider';
 import AdherenceChecklist from './AdherenceChecklist';
 import EmotionalEventLogger from './EmotionalEventLogger';
+import JournalImageUpload from './JournalImageUpload';
 import { useDailyJournal } from '../../hooks/useDailyJournal';
 
 const inputClass = 'w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900';
@@ -13,7 +14,7 @@ const ADHERENCE_KEYS = [
 ];
 
 export default function PostSessionForm({ journalDate, entry, onSaved }) {
-  const { completePostSession, upsertEntry, addEmotionalEvent, removeEmotionalEvent } = useDailyJournal();
+  const { completePostSession, upsertEntry, addEmotionalEvent, removeEmotionalEvent, updateEmotionalEvent } = useDailyJournal();
 
   const [form, setForm] = useState({
     traded_today:           entry?.traded_today           ?? null,
@@ -26,6 +27,7 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
     ...ADHERENCE_KEYS.reduce((acc, k) => ({ ...acc, [k]: entry?.[k] ?? null }), {}),
   });
   const [events, setEvents] = useState(entry?.emotional_events ?? []);
+  const [postImages, setPostImages] = useState(entry?.post_images ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const completed = entry?.post_session_completed;
@@ -42,14 +44,29 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
     setEvents(updated.emotional_events ?? []);
   }
 
+  async function handleEditEvent(id, updates) {
+    const updated = await updateEmotionalEvent(journalDate, id, updates, events);
+    setEvents(updated.emotional_events ?? []);
+  }
+
+  async function handleEventImagesUpdate(eventId, removedPath) {
+    const updated = await updateEmotionalEvent(
+      journalDate, eventId,
+      { images: (events.find(e => e.id === eventId)?.images ?? []).filter(p => p !== removedPath) },
+      events
+    );
+    setEvents(updated.emotional_events ?? []);
+  }
+
   async function save(markComplete = false) {
     setSaving(true);
     setError(null);
     try {
+      const payload = { ...form, post_images: postImages };
       if (markComplete) {
-        await completePostSession(journalDate, form);
+        await completePostSession(journalDate, payload);
       } else {
-        await upsertEntry(journalDate, form);
+        await upsertEntry(journalDate, payload);
       }
       onSaved?.();
     } catch (e) {
@@ -117,7 +134,20 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
       {/* Emotional events */}
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">Emotional events</p>
-        <EmotionalEventLogger events={events} onAdd={handleAddEvent} onRemove={handleRemoveEvent} />
+        <EmotionalEventLogger
+          events={events}
+          onAdd={handleAddEvent}
+          onRemove={handleRemoveEvent}
+          onEdit={handleEditEvent}
+          onUpdateImages={handleEventImagesUpdate}
+          journalDate={journalDate}
+        />
+      </section>
+
+      {/* Post-session images */}
+      <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">Images</p>
+        <JournalImageUpload journalDate={journalDate} section="post" paths={postImages} onPathsChange={setPostImages} />
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

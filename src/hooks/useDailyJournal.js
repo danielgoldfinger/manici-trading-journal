@@ -74,6 +74,11 @@ export function useDailyJournal() {
     return upsertEntry(journalDate, { emotional_events: events });
   }
 
+  async function updateEmotionalEvent(journalDate, eventId, updates, existingEvents = []) {
+    const events = existingEvents.map(e => e.id === eventId ? { ...e, ...updates } : e);
+    return upsertEntry(journalDate, { emotional_events: events });
+  }
+
   async function fetchHistory(filters = {}) {
     let query = supabase
       .from('daily_journal')
@@ -160,7 +165,7 @@ export function useDailyJournal() {
   return {
     getTodaysEntry, getEntry, upsertEntry,
     completePreSession, completePostSession,
-    updateStream, addEmotionalEvent, removeEmotionalEvent,
+    updateStream, addEmotionalEvent, removeEmotionalEvent, updateEmotionalEvent,
     fetchHistory, fetchJournalStats,
   };
 }

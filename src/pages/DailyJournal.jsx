@@ -78,7 +78,7 @@ export default function DailyJournal() {
 
           {/* Stream */}
           <JournalSection {...SECTIONS[2]} completed={!!entry?.stream_of_consciousness}>
-            <StreamOfConsciousness journalDate={date} initialValue={entry?.stream_of_consciousness ?? ''} />
+            <StreamOfConsciousness journalDate={date} initialValue={entry?.stream_of_consciousness ?? ''} initialImages={entry?.stream_images ?? []} />
           </JournalSection>
         </>
       )}

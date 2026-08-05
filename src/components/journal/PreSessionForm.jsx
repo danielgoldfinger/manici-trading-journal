@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import RatingSlider from './RatingSlider';
+import JournalImageUpload from './JournalImageUpload';
 import { useDailyJournal } from '../../hooks/useDailyJournal';
 
 const RISK_POSTURES = [
@@ -29,6 +30,7 @@ export default function PreSessionForm({ journalDate, entry, onSaved }) {
     pre_external_factors: entry?.pre_external_factors ?? '',
     pre_session_goal:    entry?.pre_session_goal    ?? '',
   });
+  const [preImages, setPreImages] = useState(entry?.pre_images ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const completed = entry?.pre_session_completed;
@@ -39,10 +41,11 @@ export default function PreSessionForm({ journalDate, entry, onSaved }) {
     setSaving(true);
     setError(null);
     try {
+      const payload = { ...form, pre_images: preImages };
       if (markComplete) {
-        await completePreSession(journalDate, form, entry?.pre_session_time);
+        await completePreSession(journalDate, payload, entry?.pre_session_time);
       } else {
-        await upsertEntry(journalDate, form);
+        await upsertEntry(journalDate, payload);
       }
       onSaved?.();
     } catch (e) {
@@ -123,6 +126,11 @@ export default function PreSessionForm({ journalDate, entry, onSaved }) {
         <Field label="Today's process goal">
           <textarea rows={2} value={form.pre_session_goal} onChange={e => set('pre_session_goal', e.target.value)} className={inputClass} placeholder="One specific process goal — not P&L related" />
         </Field>
+
+        <div>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Images (charts, screenshots)</span>
+          <JournalImageUpload journalDate={journalDate} section="pre" paths={preImages} onPathsChange={setPreImages} />
+        </div>
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
