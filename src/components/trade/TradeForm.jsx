@@ -14,9 +14,12 @@ import SizingPanel from './SizingPanel';
 const ALL_CHECK_IDS = [...new Set(Object.values(CHECKLISTS).flatMap((list) => list.map((c) => c.id)))];
 const emptyChecks = ALL_CHECK_IDS.reduce((acc, id) => ({ ...acc, [id]: false }), {});
 
+const TICKERS = ['ES', 'NQ', 'GC', 'SI', 'CL', 'XC', 'XW'];
+
 const emptyForm = {
   date: new Date().toISOString().slice(0, 10),
   entry_time: '',
+  ticker: 'ES',
   setup_type: 'FB',
   flush_depth: 'shallow',
   fb_level: '',
@@ -58,6 +61,7 @@ export default function TradeForm({ tradeId = null }) {
       setForm({
         date: trade.date ?? emptyForm.date,
         entry_time: trade.entry_time ?? '',
+        ticker: trade.ticker ?? 'ES',
         setup_type: trade.setup_type ?? 'FB',
         flush_depth: trade.flush_depth ?? 'shallow',
         fb_level: trade.fb_level ?? '',
@@ -202,6 +206,11 @@ export default function TradeForm({ tradeId = null }) {
         </Field>
         <Field label="Entry time">
           <input type="time" value={form.entry_time} onChange={(e) => update('entry_time', e.target.value)} className={inputClass} />
+        </Field>
+        <Field label="Ticker">
+          <select value={form.ticker} onChange={(e) => update('ticker', e.target.value)} className={inputClass}>
+            {TICKERS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         </Field>
         <Field label="Setup type">
           <select value={form.setup_type} onChange={(e) => update('setup_type', e.target.value)} className={inputClass}>

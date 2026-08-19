@@ -34,7 +34,7 @@ export default function TradeDetail({ tradeId, onClose }) {
     <div className="rounded-lg border border-gray-200 p-5 dark:border-gray-800">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">
-          {trade.date} — {trade.setup_type}
+          {trade.date} — {trade.ticker ?? 'ES'} {trade.setup_type}
         </h2>
         <div className="flex gap-2">
           <button
@@ -64,6 +64,7 @@ export default function TradeDetail({ tradeId, onClose }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 md:grid-cols-4">
+        <Meta label="Ticker" value={trade.ticker ?? 'ES'} />
         <Meta label="Result" value={trade.result} />
         <Meta label="Score" value={`${trade.setup_score ?? '—'}%`} />
         <Meta label="P&L (pts)" value={trade.pnl_points ?? '—'} />
