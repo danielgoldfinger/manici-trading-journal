@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { SETUP_TYPE_LABELS } from '../../lib/score';
 import { PASS_REASON_LABELS, FREEZE_CAUSE_LABELS, OUTCOME_LABELS, OUTCOME_COLORS } from '../../lib/observations';
 import { useObservations } from '../../hooks/useObservations';
 import Checklist from '../checklist/Checklist';
+
+const BUCKET = 'observation-screenshots';
 
 export default function ObservationDetail({ obs, onClose, onUpdated }) {
   const { updateOutcome } = useObservations();
@@ -11,6 +14,14 @@ export default function ObservationDetail({ obs, onClose, onUpdated }) {
   const [outcomeNotes, setOutcomeNotes] = useState(obs.outcome_notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [screenshotUrl, setScreenshotUrl] = useState(null);
+
+  useEffect(() => {
+    if (obs.screenshot_url) {
+      supabase.storage.from(BUCKET).createSignedUrl(obs.screenshot_url, 3600)
+        .then(({ data }) => setScreenshotUrl(data?.signedUrl ?? null));
+    }
+  }, [obs.screenshot_url]);
 
   const allCheckIds = Object.keys(obs).filter(k => k.startsWith('c_'));
   const checks = Object.fromEntries(allCheckIds.map(id => [id, obs[id]]));
@@ -66,6 +77,15 @@ export default function ObservationDetail({ obs, onClose, onUpdated }) {
         <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
           <p className="mb-1 text-xs font-medium text-gray-500">Real-time notes</p>
           <p className="text-sm">{obs.real_time_notes}</p>
+        </section>
+      )}
+
+      {screenshotUrl && (
+        <section>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Screenshot</p>
+          <a href={screenshotUrl} target="_blank" rel="noopener noreferrer">
+            <img src={screenshotUrl} alt="Observation screenshot" className="max-h-96 w-full rounded border border-gray-200 object-contain dark:border-gray-800" />
+          </a>
         </section>
       )}
 

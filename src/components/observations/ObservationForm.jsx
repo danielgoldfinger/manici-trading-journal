@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CHECKLISTS, computeScore } from '../../lib/score';
 import { PASS_REASON_LABELS, FREEZE_CAUSE_LABELS, FREEZE_REASONS } from '../../lib/observations';
 import Checklist from '../checklist/Checklist';
 import VerdictBar from '../checklist/VerdictBar';
+
+const BUCKET = 'observation-screenshots';
 
 const ALL_CHECK_IDS = [...new Set(Object.values(CHECKLISTS).flatMap(l => l.map(c => c.id)))];
 const emptyChecks = ALL_CHECK_IDS.reduce((acc, id) => ({ ...acc, [id]: false }), {});
@@ -31,6 +33,10 @@ export default function ObservationForm({ onSaved }) {
   const [checks, setChecks] = useState(emptyChecks);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [screenshotFile, setScreenshotFile] = useState(null);
+  const [screenshotPreview, setScreenshotPreview] = useState(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const fileInputRef = useRef(null);
 
   function update(field, value) {
     if (field === 'setup_type') setChecks(emptyChecks);
@@ -80,14 +86,34 @@ export default function ObservationForm({ onSaved }) {
         ...Object.fromEntries(ALL_CHECK_IDS.map(id => [id, !!checks[id]])),
       };
 
-      const { error: err } = await supabase.from('setup_observations').insert(payload);
+      const { data: inserted, error: err } = await supabase.from('setup_observations').insert(payload).select().single();
       if (err) throw err;
+
+      // Upload screenshot if attached
+      if (screenshotFile && inserted?.id) {
+        setUploadingScreenshot(true);
+        try {
+          const { data: { user: u } } = await supabase.auth.getUser();
+          const ext = screenshotFile.name.split('.').pop().toLowerCase();
+          const path = `${u.id}/${inserted.id}.${ext}`;
+          const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, screenshotFile, { upsert: true });
+          if (!upErr) {
+            await supabase.from('setup_observations').update({ screenshot_url: path }).eq('id', inserted.id);
+          }
+        } finally {
+          setUploadingScreenshot(false);
+        }
+      }
 
       setForm({ ...emptyForm, obs_time: nowTime() });
       setChecks(emptyChecks);
+      setScreenshotFile(null);
+      setScreenshotPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       onSaved?.();
     } catch (err) {
-      setError(err.message);
+      console.error('Observation save error:', err);
+      setError(err.message ?? JSON.stringify(err));
     } finally {
       setSaving(false);
     }
@@ -178,21 +204,58 @@ export default function ObservationForm({ onSaved }) {
         <Checklist checks={checks} onToggle={toggleCheck} setupType={form.setup_type} />
       </section>
 
-      {/* Notes */}
-      <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+      {/* Notes + screenshot */}
+      <section className="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
         <Field label="Real-time notes (optional — what are you thinking right now?)">
           <textarea rows={3} value={form.real_time_notes} onChange={e => update('real_time_notes', e.target.value)} className={inputClass} />
         </Field>
+        <div>
+          <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Screenshot (optional)</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setScreenshotFile(file);
+              setScreenshotPreview(URL.createObjectURL(file));
+            }}
+          />
+          {screenshotPreview ? (
+            <div className="relative mt-1 inline-block">
+              <img src={screenshotPreview} alt="Screenshot" className="max-h-48 rounded border border-gray-300 object-contain dark:border-gray-700" />
+              <button
+                type="button"
+                onClick={() => { setScreenshotFile(null); setScreenshotPreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white hover:bg-black/80"
+              >Remove</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-1 rounded border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 dark:border-gray-700 dark:text-gray-400"
+            >
+              + Attach screenshot
+            </button>
+          )}
+        </div>
       </section>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <strong>Save failed:</strong> {error}
+        </div>
+      )}
 
       <button
         type="submit"
-        disabled={saving || !form.pass_reason}
+        disabled={saving || uploadingScreenshot || !form.pass_reason}
         className="w-full rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
       >
-        {saving ? 'Saving…' : 'Log observation'}
+        {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : 'Log observation'}
       </button>
     </form>
   );
