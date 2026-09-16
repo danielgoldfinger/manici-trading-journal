@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CHECKLISTS, computeScore } from '../../lib/score';
 import { PASS_REASON_LABELS, FREEZE_CAUSE_LABELS, FREEZE_REASONS } from '../../lib/observations';
@@ -33,18 +33,71 @@ export default function ObservationForm({ onSaved }) {
   const [checks, setChecks] = useState(emptyChecks);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [autoSavedAt, setAutoSavedAt] = useState(null);
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const fileInputRef = useRef(null);
+  const autoSaveTimer = useRef(null);
+  const draftIdRef = useRef(null);
+  const latestForm = useRef(form);
+  const latestChecks = useRef(checks);
+  latestForm.current = form;
+  latestChecks.current = checks;
+
+  function buildPayload(f, c, userId) {
+    const fdNum = (v) => v === '' ? null : parseFloat(v);
+    const fbN = fdNum(f.fb_level);
+    const flN = fdNum(f.flush_low);
+    const fd = fbN != null && flN != null ? parseFloat((fbN - flN).toFixed(2)) : null;
+    return {
+      user_id:      userId,
+      obs_date:     f.obs_date,
+      obs_time:     f.obs_time || null,
+      setup_type:   f.setup_type,
+      fb_level:     fbN,
+      flush_low:    flN,
+      flush_depth:  fd,
+      flush_depth_cat: fd != null && fd >= 20 ? 'deep' : 'shallow',
+      pass_reason:  f.pass_reason,
+      was_pre_planned: f.was_pre_planned,
+      freeze_cause: FREEZE_REASONS.has(f.pass_reason) ? (f.freeze_cause || null) : null,
+      real_time_notes: f.real_time_notes || null,
+      setup_score:  computeScore(c, f.setup_type),
+      had_confirmation_but_froze: computeScore(c, f.setup_type) >= 70 && FREEZE_REASONS.has(f.pass_reason),
+      ...Object.fromEntries(ALL_CHECK_IDS.map(id => [id, !!c[id]])),
+    };
+  }
+
+  const scheduleAutoSave = useCallback(() => {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const f = latestForm.current;
+      const c = latestChecks.current;
+      if (!f.pass_reason) return; // need at minimum a pass reason
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const payload = buildPayload(f, c, user.id);
+        if (draftIdRef.current) {
+          const { data } = await supabase.from('setup_observations').update(payload).eq('id', draftIdRef.current).select().single();
+          if (data) setAutoSavedAt(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+        } else {
+          const { data } = await supabase.from('setup_observations').insert(payload).select().single();
+          if (data) { draftIdRef.current = data.id; setAutoSavedAt(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })); }
+        }
+      } catch { /* silent */ }
+    }, 1500);
+  }, []);
 
   function update(field, value) {
     if (field === 'setup_type') setChecks(emptyChecks);
     setForm(prev => ({ ...prev, [field]: value }));
+    scheduleAutoSave();
   }
 
   function toggleCheck(id) {
     setChecks(prev => ({ ...prev, [id]: !prev[id] }));
+    scheduleAutoSave();
   }
 
   const flushDepth = useMemo(() => {
@@ -62,31 +115,18 @@ export default function ObservationForm({ onSaved }) {
     setSaving(true);
     setError(null);
     try {
+      clearTimeout(autoSaveTimer.current); // cancel pending auto-save
       const { data: { user } } = await supabase.auth.getUser();
+      const payload = buildPayload(form, checks, user.id);
 
-      const fdNum = (v) => v === '' ? null : parseFloat(v);
-      const fd = flushDepth != null ? parseFloat(flushDepth) : null;
-
-      const payload = {
-        user_id:        user.id,
-        obs_date:       form.obs_date,
-        obs_time:       form.obs_time || null,
-        setup_type:     form.setup_type,
-        fb_level:       fdNum(form.fb_level),
-        flush_low:      fdNum(form.flush_low),
-        flush_depth:    fd,
-        flush_depth_cat: fd != null && fd >= 20 ? 'deep' : 'shallow',
-        pass_reason:    form.pass_reason,
-        was_pre_planned: form.was_pre_planned,
-        freeze_cause:   FREEZE_REASONS.has(form.pass_reason) ? (form.freeze_cause || null) : null,
-        real_time_notes: form.real_time_notes || null,
-        setup_score:    score,
-        had_confirmation_but_froze:
-          score >= 70 && FREEZE_REASONS.has(form.pass_reason),
-        ...Object.fromEntries(ALL_CHECK_IDS.map(id => [id, !!checks[id]])),
-      };
-
-      const { data: inserted, error: err } = await supabase.from('setup_observations').insert(payload).select().single();
+      let inserted;
+      let err;
+      if (draftIdRef.current) {
+        ({ data: inserted, error: err } = await supabase.from('setup_observations').update(payload).eq('id', draftIdRef.current).select().single());
+        if (!err) inserted = inserted ?? { id: draftIdRef.current };
+      } else {
+        ({ data: inserted, error: err } = await supabase.from('setup_observations').insert(payload).select().single());
+      }
       if (err) throw err;
 
       // Upload screenshot if attached
@@ -105,8 +145,10 @@ export default function ObservationForm({ onSaved }) {
         }
       }
 
+      draftIdRef.current = null;
       setForm({ ...emptyForm, obs_time: nowTime() });
       setChecks(emptyChecks);
+      setAutoSavedAt(null);
       setScreenshotFile(null);
       setScreenshotPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -250,13 +292,18 @@ export default function ObservationForm({ onSaved }) {
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={saving || uploadingScreenshot || !form.pass_reason}
-        className="w-full rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
-      >
-        {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : 'Log observation'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={saving || uploadingScreenshot || !form.pass_reason}
+          className="flex-1 rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : 'Log observation'}
+        </button>
+        {autoSavedAt && !saving && (
+          <span className="shrink-0 text-xs text-gray-400">Draft saved {autoSavedAt}</span>
+        )}
+      </div>
     </form>
   );
 }

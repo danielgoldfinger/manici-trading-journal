@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import RatingSlider from './RatingSlider';
 import AdherenceChecklist from './AdherenceChecklist';
 import EmotionalEventLogger from './EmotionalEventLogger';
@@ -30,9 +30,33 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
   const [postImages, setPostImages] = useState(entry?.post_images ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [autoSavedAt, setAutoSavedAt] = useState(null);
+  const autoSaveTimer = useRef(null);
+  const latestForm = useRef(form);
+  const latestImages = useRef(postImages);
+  latestForm.current = form;
+  latestImages.current = postImages;
   const completed = entry?.post_session_completed;
 
-  function set(key, val) { setForm(p => ({ ...p, [key]: val })); }
+  function scheduleAutoSave() {
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        await upsertEntry(journalDate, { ...latestForm.current, post_images: latestImages.current });
+        setAutoSavedAt(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+      } catch { /* silent */ }
+    }, 1500);
+  }
+
+  function set(key, val) {
+    setForm(p => ({ ...p, [key]: val }));
+    scheduleAutoSave();
+  }
+
+  function setImages(paths) {
+    setPostImages(paths);
+    scheduleAutoSave();
+  }
 
   async function handleAddEvent(event) {
     const updated = await addEmotionalEvent(journalDate, event, events);
@@ -147,18 +171,19 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
       {/* Post-session images */}
       <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">Images</p>
-        <JournalImageUpload journalDate={journalDate} section="post" paths={postImages} onPathsChange={setPostImages} />
+        <JournalImageUpload journalDate={journalDate} section="post" paths={postImages} onPathsChange={setImages} />
       </section>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex gap-3">
-        <button type="button" onClick={() => save(false)} disabled={saving} className="rounded border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 dark:border-gray-700 dark:text-gray-400">
-          Save draft
-        </button>
+      <div className="flex items-center gap-3">
         <button type="button" onClick={() => save(true)} disabled={saving} className="rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50">
           {completed ? 'Update' : 'Mark complete'}
         </button>
+        {autoSavedAt && !saving && (
+          <span className="text-xs text-gray-400">Auto-saved {autoSavedAt}</span>
+        )}
+        {saving && <span className="text-xs text-gray-400">Saving…</span>}
       </div>
     </div>
   );
