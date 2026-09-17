@@ -9,6 +9,8 @@ import { supabase } from '../../lib/supabase';
 import Checklist from '../checklist/Checklist';
 import VerdictBar from '../checklist/VerdictBar';
 import SizingPanel from './SizingPanel';
+import LinkPrincipleModal from '../principles/LinkPrincipleModal';
+import { usePrinciples } from '../../hooks/usePrinciples';
 
 // All 14 DB column slots, defaulted false — covers every setup type's checklist.
 const ALL_CHECK_IDS = [...new Set(Object.values(CHECKLISTS).flatMap((list) => list.map((c) => c.id)))];
@@ -44,8 +46,11 @@ export default function TradeForm({ tradeId = null }) {
   const { settings } = useSettings();
   const { createTrade, updateTrade, getTrade } = useTrades();
   const { plan, loadPlan } = useDailyPlan();
+  const { fetchLinksForTrade } = usePrinciples();
 
   const [form, setForm] = useState(emptyForm);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [tradeLinks, setTradeLinks] = useState([]);
   const [checks, setChecks] = useState(emptyChecks);
   const [adjustments, setAdjustments] = useState({});
   const [saving, setSaving] = useState(false);
@@ -92,6 +97,13 @@ export default function TradeForm({ tradeId = null }) {
   useEffect(() => {
     if (form.date) loadPlan(form.date);
   }, [form.date, loadPlan]);
+
+  async function reloadTradeLinks() {
+    if (!tradeId) return;
+    try { setTradeLinks(await fetchLinksForTrade(tradeId)); } catch { /* silent */ }
+  }
+
+  useEffect(() => { reloadTradeLinks(); }, [tradeId]);
 
   const planLevels = useMemo(() => {
     if (!plan) return [];
@@ -385,6 +397,41 @@ export default function TradeForm({ tradeId = null }) {
         </div>
       </section>
 
+      {/* Principle links — only available when editing an existing trade */}
+      {tradeId && (
+        <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Principles</p>
+            <button
+              type="button"
+              onClick={() => setShowLinkModal(true)}
+              className="text-xs text-purple-600 hover:underline dark:text-purple-400"
+            >
+              + Link
+            </button>
+          </div>
+          {tradeLinks.length === 0 ? (
+            <p className="text-xs text-gray-400">No principles linked yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {tradeLinks.map(l => (
+                <div key={l.id} className="flex items-start gap-2 text-xs">
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                    l.relationship_type === 'violated' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    : l.relationship_type === 'applied' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  }`}>{l.relationship_type}</span>
+                  <div>
+                    <span className="font-medium">{l.principles?.title}</span>
+                    {l.note && <span className="ml-1 text-gray-400">— {l.note}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <button
@@ -394,6 +441,16 @@ export default function TradeForm({ tradeId = null }) {
       >
         {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : tradeId ? 'Update trade' : 'Save trade'}
       </button>
+
+      {showLinkModal && tradeId && (
+        <LinkPrincipleModal
+          sourceType="trade"
+          sourceId={tradeId}
+          existingLinks={tradeLinks}
+          onSaved={reloadTradeLinks}
+          onClose={() => setShowLinkModal(false)}
+        />
+      )}
     </form>
   );
 }

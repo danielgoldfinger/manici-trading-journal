@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import RatingSlider from './RatingSlider';
 import AdherenceChecklist from './AdherenceChecklist';
 import EmotionalEventLogger from './EmotionalEventLogger';
 import JournalImageUpload from './JournalImageUpload';
 import { useDailyJournal } from '../../hooks/useDailyJournal';
+import LinkPrincipleModal from '../principles/LinkPrincipleModal';
+import { usePrinciples } from '../../hooks/usePrinciples';
 
 const inputClass = 'w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900';
 
@@ -15,6 +17,17 @@ const ADHERENCE_KEYS = [
 
 export default function PostSessionForm({ journalDate, entry, onSaved }) {
   const { completePostSession, upsertEntry, addEmotionalEvent, removeEmotionalEvent, updateEmotionalEvent } = useDailyJournal();
+  const { fetchLinksForJournal } = usePrinciples();
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [journalLinks, setJournalLinks] = useState([]);
+  const journalId = entry?.id ?? null;
+
+  async function reloadJournalLinks() {
+    if (!journalId) return;
+    try { setJournalLinks(await fetchLinksForJournal(journalId)); } catch { /* silent */ }
+  }
+
+  useEffect(() => { reloadJournalLinks(); }, [journalId]);
 
   const [form, setForm] = useState({
     traded_today:           entry?.traded_today           ?? null,
@@ -173,6 +186,49 @@ export default function PostSessionForm({ journalDate, entry, onSaved }) {
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500">Images</p>
         <JournalImageUpload journalDate={journalDate} section="post" paths={postImages} onPathsChange={setImages} />
       </section>
+
+      {/* Principle links */}
+      <section className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Principles</p>
+          {journalId && (
+            <button type="button" onClick={() => setShowLinkModal(true)} className="text-xs text-purple-600 hover:underline dark:text-purple-400">
+              + Link
+            </button>
+          )}
+        </div>
+        {!journalId ? (
+          <p className="text-xs text-gray-400">Save the journal first to link principles.</p>
+        ) : journalLinks.length === 0 ? (
+          <p className="text-xs text-gray-400">No principles linked yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {journalLinks.map(l => (
+              <div key={l.id} className="flex items-start gap-2 text-xs">
+                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                  l.relationship_type === 'violated' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  : l.relationship_type === 'applied' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                }`}>{l.relationship_type}</span>
+                <div>
+                  <span className="font-medium">{l.principles?.title}</span>
+                  {l.note && <span className="ml-1 text-gray-400">— {l.note}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {showLinkModal && journalId && (
+        <LinkPrincipleModal
+          sourceType="journal"
+          sourceId={journalId}
+          existingLinks={journalLinks}
+          onSaved={reloadJournalLinks}
+          onClose={() => setShowLinkModal(false)}
+        />
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

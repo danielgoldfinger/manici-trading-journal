@@ -8,6 +8,7 @@ import Stats from './pages/Stats';
 import Plan from './pages/Plan';
 import Settings from './pages/Settings';
 import Observations from './pages/Observations';
+import Principles from './pages/Principles';
 
 function App() {
   useDarkMode();
@@ -23,6 +24,7 @@ function App() {
           <Route path="/plan" element={<Plan />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/observations" element={<Observations />} />
+          <Route path="/principles" element={<Principles />} />
           <Route path="/" element={<Navigate to="/log" replace />} />
         </Route>
       </Routes>
