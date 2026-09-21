@@ -1,0 +1,81 @@
+export const MODULES = [
+  {
+    key: 'home',
+    label: 'Home',
+    to: '/',
+    exact: true,
+    color: '#94a3b8',
+    icon: 'home',
+    description: 'Your daily command center',
+  },
+  {
+    key: 'schedule',
+    label: 'Schedule',
+    to: '/schedule',
+    color: '#e0b954',
+    icon: 'schedule',
+    description: 'Weekly template and actual log',
+  },
+  {
+    key: 'habits',
+    label: 'Habits',
+    to: '/habits',
+    color: '#c084fc',
+    icon: 'habits',
+    description: 'Daily anchor check-in',
+  },
+  {
+    key: 'trading',
+    label: 'Trading',
+    to: '/journal',
+    color: '#4f8ef7',
+    icon: 'trading',
+    description: 'Trade journal, stats, and plan',
+  },
+  {
+    key: 'fitness',
+    label: 'Fitness',
+    to: '/fitness',
+    color: '#4caf50',
+    icon: 'fitness',
+    description: 'Gym sessions and running log',
+  },
+  {
+    key: 'reading',
+    label: 'Reading',
+    to: '/reading',
+    color: '#5bc4f5',
+    icon: 'reading',
+    description: 'Book library and reviews',
+  },
+  {
+    key: 'wilder',
+    label: 'Wilder',
+    to: '/wilder',
+    color: '#9c6fd6',
+    icon: 'wilder',
+    description: 'Client roster and service log',
+  },
+  {
+    key: 'news',
+    label: 'News',
+    to: '/news',
+    color: '#f0a050',
+    icon: 'news',
+    description: 'Morning and afternoon brief',
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    to: '/analytics',
+    color: '#a78bfa',
+    icon: 'analytics',
+    description: 'Cross-module patterns and trends',
+  },
+];
+
+// Routes that belong to the trading module (show trading sub-nav)
+export const TRADING_ROUTES = [
+  '/log', '/journal', '/stats', '/plan',
+  '/observations', '/principles', '/settings',
+];
