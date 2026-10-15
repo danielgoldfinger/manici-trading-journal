@@ -10,7 +10,7 @@ const REL_TYPES = [
 const inputClass = 'w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900';
 
 export default function LinkPrincipleModal({ sourceType, sourceId, existingLinks = [], onSaved, onClose }) {
-  const { fetchPrinciples, linkTrade, linkJournal } = usePrinciples();
+  const { fetchPrinciples, createPrinciple, linkTrade, linkJournal } = usePrinciples();
   const [principles, setPrinciples] = useState([]);
   const [principleId, setPrincipleId] = useState('');
   const [relType, setRelType] = useState('violated');
@@ -18,12 +18,36 @@ export default function LinkPrincipleModal({ sourceType, sourceId, existingLinks
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Inline new-principle form state
+  const [showNew, setShowNew] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [creatingNew, setCreatingNew] = useState(false);
+
   useEffect(() => {
     fetchPrinciples().then(setPrinciples).catch(console.error);
   }, []);
 
   const existingIds = new Set(existingLinks.map(l => l.principle_id));
   const available = principles.filter(p => !existingIds.has(p.id));
+
+  async function handleCreateNew(e) {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    setCreatingNew(true);
+    setError(null);
+    try {
+      const created = await createPrinciple({ title: newTitle.trim() });
+      const updated = await fetchPrinciples();
+      setPrinciples(updated);
+      setPrincipleId(created.id);
+      setShowNew(false);
+      setNewTitle('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreatingNew(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -57,20 +81,53 @@ export default function LinkPrincipleModal({ sourceType, sourceId, existingLinks
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Principle</span>
-            <select value={principleId} onChange={e => setPrincipleId(e.target.value)} required className={inputClass}>
-              <option value="">Select…</option>
-              {available.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.display_number ? `#${p.display_number} — ` : ''}{p.title}
-                </option>
-              ))}
-            </select>
-            {available.length === 0 && (
-              <p className="mt-1 text-xs text-gray-400">All principles already linked, or none created yet.</p>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Principle</span>
+              <button
+                type="button"
+                onClick={() => { setShowNew(v => !v); setNewTitle(''); }}
+                className="text-xs text-purple-500 hover:text-purple-400"
+              >
+                {showNew ? '← Back to list' : '+ New principle'}
+              </button>
+            </div>
+
+            {showNew ? (
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={newTitle}
+                  onChange={e => setNewTitle(e.target.value)}
+                  placeholder="Principle title…"
+                  className={inputClass + ' flex-1'}
+                  onKeyDown={e => e.key === 'Enter' && handleCreateNew(e)}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateNew}
+                  disabled={creatingNew || !newTitle.trim()}
+                  className="rounded bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {creatingNew ? '…' : 'Create'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <select value={principleId} onChange={e => setPrincipleId(e.target.value)} required className={inputClass}>
+                  <option value="">Select…</option>
+                  {available.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.display_number ? `#${p.display_number} — ` : ''}{p.title}
+                    </option>
+                  ))}
+                </select>
+                {available.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-400">All principles already linked, or none created yet.</p>
+                )}
+              </>
             )}
-          </label>
+          </div>
 
           <div>
             <span className="mb-2 block text-xs font-medium text-gray-500 dark:text-gray-400">Relationship</span>
@@ -108,7 +165,7 @@ export default function LinkPrincipleModal({ sourceType, sourceId, existingLinks
           <div className="flex gap-3">
             <button
               type="submit"
-              disabled={saving || !principleId}
+              disabled={saving || !principleId || showNew}
               className="flex-1 rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
             >
               {saving ? 'Linking…' : 'Link'}
