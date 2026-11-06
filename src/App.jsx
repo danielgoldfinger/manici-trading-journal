@@ -1,7 +1,10 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useDarkMode } from './hooks/useDarkMode';
+import { supabase } from './lib/supabase';
 import PersonalOSLayout from './components/layout/PersonalOSLayout';
 import Auth from './pages/Auth';
+import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import Log from './pages/Log';
 import JournalPage from './pages/JournalPage';
@@ -18,13 +21,26 @@ import Wilder from './pages/Wilder';
 import News from './pages/News';
 import Analytics from './pages/Analytics';
 
+function RecoveryListener() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') navigate('/reset-password');
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   useDarkMode();
 
   return (
     <BrowserRouter>
+      <RecoveryListener />
       <Routes>
         <Route path="/login" element={<Auth />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<PersonalOSLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/schedule" element={<Schedule />} />
