@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CHECKLISTS, computeScore, MISTAKE_FLAGS } from '../../lib/score';
 import { getRecommendedContracts, DOWNSIZE_RULES } from '../../lib/sizing';
@@ -54,6 +54,7 @@ export default function TradeForm({ tradeId = null }) {
   const [checks, setChecks] = useState(emptyChecks);
   const [adjustments, setAdjustments] = useState({});
   const [saving, setSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState(null); // null | 'saving' | 'saved'
   const [error, setError] = useState(null);
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [screenshotPreview, setScreenshotPreview] = useState(null);
@@ -104,6 +105,40 @@ export default function TradeForm({ tradeId = null }) {
   }
 
   useEffect(() => { reloadTradeLinks(); }, [tradeId]);
+
+  // Auto-save for existing trades — debounced 1.5s after last change
+  const autoSaveTimerRef = useRef(null);
+  const isFirstRender = useRef(true);
+
+  const buildPayload = useCallback(() => {
+    const numericFields = ['fb_level', 'entry_price', 'stop_price', 't1_price', 'exit_price', 'pnl_points', 'runner_points', 'plan_level_price'];
+    const payload = { ...form };
+    delete payload._autoFilled;
+    numericFields.forEach((f) => { payload[f] = payload[f] === '' ? null : parseFloat(payload[f]); });
+    payload.actual_contracts = payload.actual_contracts === '' ? null : parseInt(payload.actual_contracts, 10);
+    payload.entry_time = payload.entry_time === '' ? null : payload.entry_time;
+    payload.setup_score = score;
+    payload.recommended_contracts = recommendedContracts;
+    Object.assign(payload, checks);
+    return payload;
+  }, [form, checks, score, recommendedContracts]);
+
+  useEffect(() => {
+    if (!tradeId) return;
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      setAutoSaveStatus('saving');
+      try {
+        await updateTrade(tradeId, buildPayload());
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus(null), 2000);
+      } catch {
+        setAutoSaveStatus(null);
+      }
+    }, 1500);
+    return () => clearTimeout(autoSaveTimerRef.current);
+  }, [form, checks, tradeId]);
 
   const planLevels = useMemo(() => {
     if (!plan) return [];
@@ -209,6 +244,7 @@ export default function TradeForm({ tradeId = null }) {
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
       <VerdictBar checks={checks} setupType={form.setup_type} depth={form.flush_depth} accountBalance={accountBalance} />
 
@@ -434,24 +470,30 @@ export default function TradeForm({ tradeId = null }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={saving || uploadingScreenshot}
-        className="w-full rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
-      >
-        {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : tradeId ? 'Update trade' : 'Save trade'}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={saving || uploadingScreenshot}
+          className="flex-1 rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          {uploadingScreenshot ? 'Uploading screenshot…' : saving ? 'Saving…' : tradeId ? 'Update trade' : 'Save trade'}
+        </button>
+        {autoSaveStatus === 'saving' && <span className="text-xs text-gray-400">Saving…</span>}
+        {autoSaveStatus === 'saved'  && <span className="text-xs text-green-500">✓ Saved</span>}
+      </div>
 
-      {showLinkModal && tradeId && (
-        <LinkPrincipleModal
-          sourceType="trade"
-          sourceId={tradeId}
-          existingLinks={tradeLinks}
-          onSaved={reloadTradeLinks}
-          onClose={() => setShowLinkModal(false)}
-        />
-      )}
     </form>
+
+    {showLinkModal && tradeId && (
+      <LinkPrincipleModal
+        sourceType="trade"
+        sourceId={tradeId}
+        existingLinks={tradeLinks}
+        onSaved={reloadTradeLinks}
+        onClose={() => setShowLinkModal(false)}
+      />
+    )}
+    </>
   );
 }
 
