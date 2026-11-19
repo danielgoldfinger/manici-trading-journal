@@ -106,6 +106,37 @@ export default function TradeForm({ tradeId = null }) {
 
   useEffect(() => { reloadTradeLinks(); }, [tradeId]);
 
+  const planLevels = useMemo(() => {
+    if (!plan) return [];
+    return (plan.direct_bid_levels ?? []).map((l) => ({
+      price: l.price,
+      label: `${l.price} — ${l.type}${l.condition ? `: ${l.condition}` : ''}`,
+    }));
+  }, [plan]);
+
+  function selectPlanLevel(priceStr) {
+    const price = priceStr === '' ? '' : parseFloat(priceStr);
+    setForm((prev) => ({
+      ...prev,
+      fb_level: price,
+      plan_level_price: price,
+      plan_id: priceStr === '' ? null : plan?.id ?? null,
+    }));
+  }
+
+  const score = useMemo(() => computeScore(checks, form.setup_type), [checks, form.setup_type]);
+  const accountBalance = settings?.account_balance ?? 11600;
+
+  const recommendedContracts = useMemo(() => {
+    const base = getRecommendedContracts(accountBalance, score);
+    if (base === 0) return 0;
+    const totalAdjustment = DOWNSIZE_RULES.reduce(
+      (sum, rule) => sum + (adjustments[rule.id] ? rule.adjustment : 0),
+      0
+    );
+    return Math.max(1, base + totalAdjustment);
+  }, [accountBalance, score, adjustments]);
+
   // Auto-save for existing trades — debounced 1.5s after last change
   const autoSaveTimerRef = useRef(null);
   const isFirstRender = useRef(true);
@@ -139,37 +170,6 @@ export default function TradeForm({ tradeId = null }) {
     }, 1500);
     return () => clearTimeout(autoSaveTimerRef.current);
   }, [form, checks, tradeId]);
-
-  const planLevels = useMemo(() => {
-    if (!plan) return [];
-    return (plan.direct_bid_levels ?? []).map((l) => ({
-      price: l.price,
-      label: `${l.price} — ${l.type}${l.condition ? `: ${l.condition}` : ''}`,
-    }));
-  }, [plan]);
-
-  function selectPlanLevel(priceStr) {
-    const price = priceStr === '' ? '' : parseFloat(priceStr);
-    setForm((prev) => ({
-      ...prev,
-      fb_level: price,
-      plan_level_price: price,
-      plan_id: priceStr === '' ? null : plan?.id ?? null,
-    }));
-  }
-
-  const score = useMemo(() => computeScore(checks, form.setup_type), [checks, form.setup_type]);
-  const accountBalance = settings?.account_balance ?? 11600;
-
-  const recommendedContracts = useMemo(() => {
-    const base = getRecommendedContracts(accountBalance, score);
-    if (base === 0) return 0;
-    const totalAdjustment = DOWNSIZE_RULES.reduce(
-      (sum, rule) => sum + (adjustments[rule.id] ? rule.adjustment : 0),
-      0
-    );
-    return Math.max(1, base + totalAdjustment);
-  }, [accountBalance, score, adjustments]);
 
   // Auto-calculate P&L from entry/exit unless user has manually overridden it
   useEffect(() => {
